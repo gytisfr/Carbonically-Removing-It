@@ -1,0 +1,25 @@
+CREATE TABLE trucks (
+    id int primary key,
+    capacity int not null,
+    routeid str,
+    driverid str
+);
+
+CREATE TABLE routes (
+    id str primary key,
+    locations str not null
+);
+
+CREATE TABLE clients (
+    id int primary key,
+    name str not null,
+    location str not null,
+    carbontype int not null,
+    producer bool not null
+);
+
+CREATE TABLE drivers (
+    id int primary key,
+    name str not null,
+    position str not null
+);
