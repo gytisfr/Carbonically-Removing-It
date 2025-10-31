@@ -5,12 +5,14 @@ import Login from './pages/Login';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import RoutesPage from './pages/Routes';
+import Divider from './components/divider';
 
 function App() {
   return (
     <div className='w-full'>
       <Router>
         <Navbar />
+        <Divider />
         <Routes>
           <Route path='/' element={<Tracker />} />
           <Route path='/routes' element={<RoutesPage />} />
