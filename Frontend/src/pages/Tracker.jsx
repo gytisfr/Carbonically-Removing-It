@@ -6,26 +6,18 @@ import {
   DirectionsRenderer,
 } from "@react-google-maps/api";
 
-/**
- * Full component: shows ALL routes between scottish cities,
- * puts truck icons at the start of each route, and lists routes
- * in the sidebar. Clicking a route in the sidebar fits the map to it.
- */
 
-// Map container style
 const containerStyle = {
   width: "100%",
   height: "100%",
   borderRadius: "0.375rem",
 };
 
-// center the map initially on Aberdeen
+
 const initialCenter = { lat: 57.1497, lng: -2.0943 };
 
-// Put your key here for local testing only
 const GOOGLE_MAPS_API_KEY = "AIzaSyAZ27Ls3s5AzUVOSXKcGP1RFxWnIcIkvq0";
 
-// Cities (consecutive pairs will form routes)
 const scottishCities = [
   { name: "Aberdeen", lat: 57.1497, lng: -2.0943 },
   { name: "Dundee", lat: 56.4620, lng: -2.9707 },
@@ -36,11 +28,11 @@ const scottishCities = [
 const truckIconUrl = "https://cdn-icons-png.flaticon.com/512/1995/1995574.png";
 
 const Tracker = () => {
-  const [allDirections, setAllDirections] = useState([]); // array of DirectionsResult objects
+  const [allDirections, setAllDirections] = useState([]); 
   const [mapLoaded, setMapLoaded] = useState(false);
   const mapRef = useRef(null);
 
-  // Simple helper to create a Directions route promise between two coords
+
   const createRoutePromise = (origin, destination) =>
     new Promise((resolve, reject) => {
       if (!window.google) {
@@ -62,13 +54,12 @@ const Tracker = () => {
       );
     });
 
-  // Called once when the map is loaded
+
   const handleMapLoad = useCallback(
     async (mapInstance) => {
       mapRef.current = mapInstance;
       setMapLoaded(true);
 
-      // Build routes for every consecutive city pair
       const pairs = [];
       for (let i = 0; i < scottishCities.length - 1; i++) {
         const origin = scottishCities[i];
@@ -76,7 +67,7 @@ const Tracker = () => {
         pairs.push({ origin, destination, index: i });
       }
 
-      // Resolve all routes in parallel and save them in the same order
+  
       try {
         const results = await Promise.all(
           pairs.map((p) =>
@@ -95,12 +86,12 @@ const Tracker = () => {
     [setAllDirections]
   );
 
-  // Fit map to the given DirectionsResult (first route's overview_path)
+
   const fitMapToDirections = (directionsResult) => {
     if (!mapRef.current || !directionsResult) return;
     const bounds = new window.google.maps.LatLngBounds();
     const route = directionsResult.routes[0];
-    // overview_path is an array of LatLng
+
     route.overview_path.forEach((p) => bounds.extend(p));
     mapRef.current.fitBounds(bounds);
   };
@@ -117,16 +108,13 @@ const Tracker = () => {
               zoom={7}
               onLoad={handleMapLoad}
             >
-              {/* Truck markers at each city (marker at the beginning of each route) */}
               {scottishCities.map((city, idx) => (
                 <Marker
                   key={city.name}
                   position={{ lat: city.lat, lng: city.lng }}
                   title={city.name}
-                  // icon object: scaledSize may be accepted; Google will adjust.
                   icon={{
                     url: truckIconUrl,
-                    // scaledSize: new window.google.maps.Size(36, 36), // uncomment if you prefer using Size (only works after window.google exists)
                     scaledSize: { width: 36, height: 36 },
                   }}
                 />
@@ -137,13 +125,11 @@ const Tracker = () => {
                 <DirectionsRenderer
                   key={r.index}
                   directions={r.directions}
-                  // optional: you can style the polyline for each route here via options:
                   options={{
                     polylineOptions: {
                       strokeWeight: 5,
-                      // strokeColor left default — Google supplies distinct colors for multiple renderers
                     },
-                    suppressMarkers: true, // we are using our own truck markers
+                    suppressMarkers: true,
                   }}
                 />
               ))}
@@ -155,10 +141,8 @@ const Tracker = () => {
         <div className="h-full w-72 bg-white rounded-sm ml-6 flex flex-col items-start justify-start shadow-2xl p-4">
           <h2 className="text-xl font-semibold mb-3">Routes</h2>
 
-          {/* If routes are still loading */}
           {!mapLoaded && <p className="text-sm text-gray-500">Map loading…</p>}
 
-          {/* List every consecutive route */}
           <div className="w-full space-y-2 overflow-auto max-h-[70vh]">
             {scottishCities.length <= 1 && (
               <p className="text-sm text-gray-600">Not enough cities to form routes.</p>
@@ -174,10 +158,8 @@ const Tracker = () => {
                   key={i}
                   className="w-full p-2 rounded-md border border-gray-200 hover:bg-gray-50 cursor-pointer"
                   onClick={() => {
-                    // Fit to route if we have directions
                     if (routeData?.directions) fitMapToDirections(routeData.directions);
                     else if (mapRef.current) {
-                      // fallback: pan to origin if directions not ready
                       mapRef.current.panTo({ lat: city.lat, lng: city.lng });
                       mapRef.current.setZoom(10);
                     }
