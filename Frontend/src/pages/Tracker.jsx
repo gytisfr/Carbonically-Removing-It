@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   GoogleMap,
   LoadScript,
@@ -6,186 +6,195 @@ import {
   DirectionsRenderer,
 } from "@react-google-maps/api";
 
-
+// Map container style
 const containerStyle = {
   width: "100%",
   height: "100%",
   borderRadius: "0.375rem",
 };
 
+const initialCenter = { lat: 57.1497, lng: -2.0943 }; // Aberdeen
 
-const initialCenter = { lat: 57.1497, lng: -2.0943 };
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyAZ27Ls3s5AzUVOSXKcGP1RFxWnIcIkvq0";
 
 const scottishCities = [
   { name: "Aberdeen", lat: 57.1497, lng: -2.0943 },
-  { name: "Dundee", lat: 56.4620, lng: -2.9707 },
+  { name: "Dundee", lat: 56.462, lng: -2.9707 },
   { name: "Edinburgh", lat: 55.9533, lng: -3.1883 },
   { name: "Glasgow", lat: 55.8642, lng: -4.2518 },
 ];
 
-const truckIconUrl = "https://cdn-icons-png.flaticon.com/512/1995/1995574.png";
+const truckIcon = {
+  url: "https://uxwing.com/wp-content/themes/uxwing/download/logistics-shipping-delivery/delivery-truck-icon.png",
+  scaledSize: { width: 40, height: 40 },
+};
 
 const Tracker = () => {
-  const [allDirections, setAllDirections] = useState([]); 
-  const [mapLoaded, setMapLoaded] = useState(false);
   const mapRef = useRef(null);
+  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
+  const [directionsList, setDirectionsList] = useState([]);
+  const [selectedRoute, setSelectedRoute] = useState(null);
 
 
-  const createRoutePromise = (origin, destination) =>
+  const createRoute = (origin, destination) =>
     new Promise((resolve, reject) => {
-      if (!window.google) {
-        reject(new Error("Google API not loaded"));
-        return;
-      }
       const service = new window.google.maps.DirectionsService();
       service.route(
         {
           origin,
           destination,
           travelMode: window.google.maps.TravelMode.DRIVING,
-          optimizeWaypoints: false,
         },
         (result, status) => {
           if (status === "OK") resolve(result);
-          else reject(new Error("Directions request failed: " + status));
+          else reject(status);
         }
       );
     });
 
 
-  const handleMapLoad = useCallback(
-    async (mapInstance) => {
-      mapRef.current = mapInstance;
-      setMapLoaded(true);
+  const handleMapLoad = useCallback(async (map) => {
+    mapRef.current = map;
+    const routes = [];
 
-      const pairs = [];
-      for (let i = 0; i < scottishCities.length - 1; i++) {
-        const origin = scottishCities[i];
-        const destination = scottishCities[i + 1];
-        pairs.push({ origin, destination, index: i });
-      }
+    for (let i = 0; i < scottishCities.length - 1; i++) {
+      const origin = scottishCities[i];
+      const destination = scottishCities[i + 1];
+      routes.push({ origin, destination, index: i });
+    }
 
-  
-      try {
-        const results = await Promise.all(
-          pairs.map((p) =>
-            createRoutePromise(
-              { lat: p.origin.lat, lng: p.origin.lng },
-              { lat: p.destination.lat, lng: p.destination.lng }
-            ).then((res) => ({ ...p, directions: res }))
-          )
-        );
+    try {
+      const results = await Promise.all(
+        routes.map((r) =>
+          createRoute(r.origin, r.destination).then((directions) => ({
+            ...r,
+            directions,
 
-        setAllDirections(results);
-      } catch (err) {
-        console.error("Failed to load one or more routes:", err);
-      }
-    },
-    [setAllDirections]
-  );
+            driver: `Driver ${r.index + 1}`,
+            truckType: ["Truck 1", "Truck 2", "Truck 3", "Truck 4"][r.index % 4],
+          }))
+        )
+      );
+      setDirectionsList(results);
+    } catch (err) {
+      console.error("Error loading routes:", err);
+    }
+  }, []);
 
-
-  const fitMapToDirections = (directionsResult) => {
+  /** Fit map view to specific route */
+  const fitToRoute = (directionsResult) => {
     if (!mapRef.current || !directionsResult) return;
     const bounds = new window.google.maps.LatLngBounds();
-    const route = directionsResult.routes[0];
-
-    route.overview_path.forEach((p) => bounds.extend(p));
+    directionsResult.routes[0].overview_path.forEach((p) => bounds.extend(p));
     mapRef.current.fitBounds(bounds);
   };
 
+  /** Handle route selection */
+  const handleSelectRoute = (route) => {
+    fitToRoute(route.directions);
+    setSelectedRoute(route);
+  };
+
   return (
-    <div className="h-screen min-h-screen flex flex-col justify-between bg-white/80">
-      <main className="flex-grow flex items-center justify-center p-6">
-        {/* MAP */}
-        <div className="h-full w-full bg-white rounded-sm flex items-center justify-center shadow-2xl">
-          <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY} loadingElement={<div />}>
-            <GoogleMap
-              mapContainerStyle={containerStyle}
-              center={initialCenter}
-              zoom={7}
-              onLoad={handleMapLoad}
-            >
-              {scottishCities.map((city, idx) => (
-                <Marker
-                  key={city.name}
-                  position={{ lat: city.lat, lng: city.lng }}
-                  title={city.name}
-                  icon={{
-                    url: truckIconUrl,
-                    scaledSize: { width: 36, height: 36 },
-                  }}
-                />
-              ))}
+    <div className="h-screen flex bg-white/80">
+      <LoadScript
+        googleMapsApiKey={GOOGLE_MAPS_API_KEY}
+        onLoad={() => setIsScriptLoaded(true)}
+      >
+        <main className="flex-grow flex items-center justify-center p-6">
+          {/* MAP SECTION */}
+          <div className="h-full w-full bg-white rounded-sm shadow-2xl relative">
+            {isScriptLoaded && (
+              <GoogleMap
+                mapContainerStyle={containerStyle}
+                center={initialCenter}
+                zoom={7}
+                onLoad={handleMapLoad}
+                options={{
+                  mapTypeControl: false,
+                  fullscreenControl: false,
+                }}
+              >
+                {/* Truck markers */}
+                {scottishCities.map((city) => (
+                  <Marker
+                    key={city.name}
+                    position={{ lat: city.lat, lng: city.lng }}
+                    icon={truckIcon}
+                    title={city.name}
+                  />
+                ))}
 
-              {/* Render ALL routes */}
-              {allDirections.map((r) => (
-                <DirectionsRenderer
-                  key={r.index}
-                  directions={r.directions}
-                  options={{
-                    polylineOptions: {
-                      strokeWeight: 5,
-                    },
-                    suppressMarkers: true,
-                  }}
-                />
-              ))}
-            </GoogleMap>
-          </LoadScript>
-        </div>
+                {/* Render all routes */}
+                {directionsList.map((r) => (
+                  <DirectionsRenderer
+                    key={r.index}
+                    directions={r.directions}
+                    options={{
+                      suppressMarkers: true,
+                      polylineOptions: {
+                        strokeWeight: 5,
+                        strokeColor:
+                          selectedRoute?.index === r.index
+                            ? "#1E90FF"
+                            : "#999999",
+                      },
+                    }}
+                  />
+                ))}
+              </GoogleMap>
+            )}
+          </div>
 
-        {/* SIDEBAR */}
-        <div className="h-full w-72 bg-white rounded-sm ml-6 flex flex-col items-start justify-start shadow-2xl p-4">
-          <h2 className="text-xl font-semibold mb-3">Routes</h2>
+          {/* SIDEBAR */}
+          <div className="h-full w-80 bg-white rounded-sm ml-6 flex flex-col items-start shadow-2xl p-4 overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-3">Routes</h2>
 
-          {!mapLoaded && <p className="text-sm text-gray-500">Map loading…</p>}
-
-          <div className="w-full space-y-2 overflow-auto max-h-[70vh]">
-            {scottishCities.length <= 1 && (
-              <p className="text-sm text-gray-600">Not enough cities to form routes.</p>
+            {directionsList.length === 0 && (
+              <p className="text-sm text-gray-500">Loading routes...</p>
             )}
 
-            {scottishCities.slice(0, -1).map((city, i) => {
-              const nextCity = scottishCities[i + 1];
-              const routeLabel = `${city.name} → ${nextCity?.name ?? "End"}`;
-              const routeData = allDirections.find((r) => r.index === i);
+            {directionsList.map((r) => (
+              <div
+                key={r.index}
+                className={`w-full p-2 mb-2 rounded-md border ${
+                  selectedRoute?.index === r.index
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:bg-gray-50"
+                } cursor-pointer`}
+                onClick={() => handleSelectRoute(r)}
+              >
+                <p className="font-medium text-sm">
+                  {r.origin.name} → {r.destination.name}
+                </p>
+                <p className="text-xs text-gray-500">Click for details</p>
+              </div>
+            ))}
 
-              return (
-                <div
-                  key={i}
-                  className="w-full p-2 rounded-md border border-gray-200 hover:bg-gray-50 cursor-pointer"
-                  onClick={() => {
-                    if (routeData?.directions) fitMapToDirections(routeData.directions);
-                    else if (mapRef.current) {
-                      mapRef.current.panTo({ lat: city.lat, lng: city.lng });
-                      mapRef.current.setZoom(10);
-                    }
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium">{routeLabel}</div>
-                      <div className="text-xs text-gray-500">
-                        {routeData ? "Route loaded" : "Loading route..."}
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-400">{/* reserved for badges */}</div>
-                  </div>
-                </div>
-              );
-            })}
+            {/* ROUTE DETAILS */}
+            {selectedRoute && (
+              <div className="mt-4 w-full p-3 border border-gray-300 rounded-lg bg-gray-50">
+                <h3 className="font-semibold text-lg mb-2">
+                  Route Details
+                </h3>
+                <p>
+                  <strong>From:</strong> {selectedRoute.origin.name}
+                </p>
+                <p>
+                  <strong>To:</strong> {selectedRoute.destination.name}
+                </p>
+                <p>
+                  <strong>Driver:</strong> {selectedRoute.driver}
+                </p>
+                <p>
+                  <strong>Truck Type:</strong> {selectedRoute.truckType}
+                </p>
+              </div>
+            )}
           </div>
-
-          <div className="mt-4 text-sm text-gray-600">
-            <p>
-              Markers show route starts (truck icons). Click a route to focus the map on it.
-            </p>
-          </div>
-        </div>
-      </main>
+        </main>
+      </LoadScript>
     </div>
   );
 };
