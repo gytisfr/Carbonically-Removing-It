@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Benzin-Extra-Bold";
+  src: url("/fonts/benzin-extra-bold.ttf") format("truetype");
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Benzin-Bold";
+  src: url("/fonts/benzin-bold.ttf") format("truetype");
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Benzin-Medium";
+  src: url("/fonts/benzin-medium.ttf") format("truetype");
+  font-style: normal;
+}
+
+@theme {
+  --font-benzin-extra-bold: "Benzin-Extra-Bold", sans-serif;
+  --font-benzin-bold: "Benzin-Bold", sans-serif;
+  --font-benzin-medium: "Benzin-Medium", sans-serif;
+
+  --color-carbonYellow: #f0ff04;
+  --color-carbonOrange: #ea6d2d;
+  --color-carbonBG: #232023;
+}
+
+html {
+  font-family: var(--font-benzin-medium);
+  font-weight: 500;
+}
+
+:root {
+  background-color: #232023;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
