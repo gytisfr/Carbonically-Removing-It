@@ -1,15 +1,3 @@
-CREATE TABLE trucks (
-    id int primary key,
-    capacity int not null,
-    routeid str,
-    driverid str
-);
-
-CREATE TABLE routes (
-    id str primary key,
-    locations str not null
-);
-
 CREATE TABLE clients (
     id int primary key,
     name str not null,
@@ -18,8 +6,20 @@ CREATE TABLE clients (
     producer bool not null
 );
 
+CREATE TABLE routes (
+    id str primary key,
+    locations str not null
+);
+
 CREATE TABLE drivers (
     id int primary key,
     name str not null,
     position str not null
+);
+
+CREATE TABLE trucks (
+    id int primary key,
+    capacity int not null,
+    routeid str,
+    driverid str
 );
