@@ -1,3 +1,5 @@
+types = {"clients": [{"name": "id", "type": int, "required": True}, {"name": "name", "type": str, "required": True}, {"name": "location", "type": str, "required": True}, {"name": "carbontype", "type": int, "required": True}, {"name": "producer", "type": bool, "required": True}], "routes": [{"name": "id", "type": str, "required": True}, {"name": "locations", "type": str, "required": True}], "drivers": [], "trucks": [{"name": "id", "type": int, "required": True}, {"name": "capacity", "type": int, "required": True}, {"name": "routeid", "type": str, "required": False}, {"name": "driverid", "type": str, "required": False}]}
+
 class Client:
     def __init__(self, id : int, name : str, location : str, carbontype : int, producer : bool):
         self.id = id
@@ -27,11 +29,11 @@ class Driver:
         return [self.id, self.name, self.position]
 
 class Truck:
-    def __init__(self, id : int, routeid : int, driverid : int, capacity : int):
+    def __init__(self, id : int, capacity : int, routeid : int = None, driverid : int = None):
         self.id = id
+        self.capacity = capacity
         self.routeid = routeid
         self.driverid = driverid
-        self.capacity = capacity
     
     def listise(self):
-        return [self.id, self.routeid, self.driverid, self.capacity]
+        return [self.id, self.capacity, self.routeid, self.driverid]

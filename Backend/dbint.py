@@ -1,4 +1,4 @@
-import sqlite3, bcrypt, typing, datetime, random, jwt, os
+import sqlite3, typing, os
 #bcrypt, typing, datetime, random jwt, os
 import structs
 
@@ -6,7 +6,7 @@ os.chdir("\\".join(__file__.split("\\")[:-1]))
 
 chars = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
-secret = "5a13f6c8-7927-40c8-8ff7-f29ba1935aa3"
+secret = "bbda1398-4214-424b-8e0a-3b6582f00913"
 
 def encode(text : typing.Union[str, list]):
     #"   %22
@@ -14,201 +14,166 @@ def encode(text : typing.Union[str, list]):
     #\   %5C
     #-   %2D
     #%   %25
+
+    def actual(string : str):
+        return string.replace("%", "%25").replace("-", "%2D").replace("\\", "%5C").replace("'", "%27").replace('"', "%22")
+    
     if type(text) == list:
         new = []
         for entry in text:
-            if type(entry) == str:
-                new.append(entry.replace("%", "%25").replace("-", "%2D").replace("\\", "%5C").replace("'", "%27").replace('"', "%22"))
-            else:
-                new.append(entry)
+            new.append(encode(entry))
         return new
     elif type(text) == str:
-        text = text.replace("%", "%25").replace("-", "%2D").replace("\\", "%5C").replace("'", "%27").replace('"', "%22")
-        return text
+        return actual(text)
     else:
         return text
 
 def decode(text : typing.Union[int, list]):
+    def actual(string : str):
+        return string.replace('%22', '"').replace("%27", "'").replace("%5C", "\\").replace("%2D", "-").replace("%25", "%")
+    
     if type(text) == list:
         new = []
         for entry in text:
-            if type(entry) == str:
-                new.append(entry.replace("%22", '"').replace("%27", "'").replace("%5C", "\\").replace("%2D", "-").replace("%25", "%"))
-            else:
-                new.append(entry)
+            new.append(decode(entry))
         return new
     elif type(text) == str:
-        text = text.replace("%22", '"').replace("%27", "'").replace("%5C", "\\").replace("%2D", "-").replace("%25", "%")
+        return actual(text)
+    else:
         return text
 
-class client:
-    def create(client : structs.Client):
-        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
-        cursor = connection.cursor()
+"""
+def checkTypesMatch(table : str, data : list):
+    types = [el["type"] for el in structs.types[table]]
+    if len(data) != len(types):
+        return "err" #incorrect amount of arguments
+    notMatchings = []
+    for value in range(len(data)):
+        if type(data[value]) != types[value]:
+            notMatchings.append(value)
+    if notMatchings:
+        return notMatchings
+    return True
+"""
 
-        listed = encode(client.listise())
 
+
+def create(table : str, struct):
+    connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
+    cursor = connection.cursor()
+    
+    listed = encode(struct.listise())
+
+    try:
+        cursor.execute(f"""insert into {table} values({', '.join(["'" + attribute + "'" if type(attribute) == str else 'null' if attribute == None else str(attribute) for attribute in listed])});""")
+    except Exception as e:
+        return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+    
+    connection.commit()
+
+    return True
+
+def read(table : str, id):
+    connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
+    cursor = connection.cursor()
+
+    id = encode(id)
+
+    idType = structs.types[table][0]["type"]
+
+    if idType == int:
         try:
-            cursor.execute(f"""insert into clients values({', '.join(["'" + attribute + "'" if type(attribute) == str else attribute for attribute in listed])})""")
+            id = int(id)
         except Exception as e:
             return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+
+        query = f"select * from {table} where id == {id}"
+    else:
+        query = f"select * from {table} where id == '{id}'"
     
-    def read(id : int):
-        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
-        cursor = connection.cursor()
+    result = cursor.execute(query).fetchall()
 
-        id = encode(id)
-
-        result = cursor.execute(f"select * from clients where id == {id}").fetchall()[0]
-
-        return (result)
+    if not result:
+        return False
     
-    def update(client : structs.Client):
-        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
-        cursor = connection.cursor()
+    result = [decode(el) for el in result[0]]
 
-        client = encode(client.listise())
+    return result
 
-        id = client[0]
+def check(table : str, id):
+    result = read(table, id)
 
-        ogclient = client.read(id)
-
-        if not ogclient:
-            return "err"
-        
-        ogclient = encode(structs.Client(ogclient).listise())
-
-        indexToWhat = {0: "id", 1: "name", 2: "location", 3: "carbontype", 4: "producer"}
-
-        for att in range(len(client)):
-            if client[att] != ogclient[att]:
-                what = indexToWhat[att]
-                try:
-                    cursor.execute(f"""update clients set {what} = {client[att]} where id = {id}""")
-                except Exception as e:
-                    return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+    if type(result) == dict:
+        return bool(result)
     
-    def delete(client : int or structs.Client):
-        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
-        cursor = connection.cursor()
+    return result
 
-        if type(client) == structs.Client:
-            client = client.id
-        
-        client = encode(client)
+def fetch(table : str):
+    connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
+    cursor = connection.cursor()
+    
+    result = cursor.execute(f"select * from {table}").fetchall()
 
-        cursor.execute(f"delete from clients where id = {client}")
+    if result:
+        result = [[decode(el) for el in truck] for truck in result]
 
-class route:
-    def create(route : structs.Route):
-        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
-        cursor = connection.cursor()
+    return result
 
-        listed = encode(route.listise())
+def update(table : str, id, what, to):
+    connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
+    cursor = connection.cursor()
 
+    if what not in [el["name"] for el in structs.types[table]]:
+        return 400
+
+    original = check(table, id)
+    if not original:
+        return 404
+    
+    id, to = encode([id, to])
+
+    idType = structs.types[table][0]["type"]
+
+    if idType == int:
         try:
-            cursor.execute(f"""insert into routes values({', '.join(["'" + attribute + "'" if type(attribute) == str else attribute for attribute in listed])});""")
+            id = int(id)
+            query = f"""update {table} set {what} = {to} where id = {id}"""
         except Exception as e:
             return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+    else:
+        query = f"""update {table} set {what} = {to} where id = '{id}'"""
     
-    def read(id : int):
-        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
-        cursor = connection.cursor()
-        
-        id = encode(id)
-
-        result = cursor.execute(f"select * from routes where id == '{id}'").fetchall()[0]
-
-        return (result)
+    cursor.execute(query)
     
-    def update(route : structs.Route):
-        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
-        cursor = connection.cursor()
-        
-        route = encode(route.listise())
+    connection.commit()
 
-        id = route[0]
+    return True
 
-        ogroute = route.read(id)
+def delete(table : str, id):
+    connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
+    cursor = connection.cursor()
 
-        if not ogroute:
-            return "err"
-        
-        ogroute = encode(structs.Route(ogroute).listise())
+    exists = check(table, id)
 
-        indexToWhat = {0: "id", 1: "locations"}
-
-        for att in range(len(route)):
-            if route[att] != ogroute[att]:
-                what = indexToWhat[att]
-                try:
-                    cursor.execute(f"""update routes set {what} = {route[att]} where id = '{id}'""")
-                except Exception as e:
-                    return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+    if not exists:
+        return 404
     
-    def delete(route : int or structs.Route):
-        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
-        cursor = connection.cursor()
-        
-        if type(route) == structs.Route:
-            route = route.id
-        
-        route = encode(route)
+    id = encode(id)
 
-        cursor.execute(f"delete from routes where id = '{route}'")
+    idType = structs.types[table][0]["type"]
 
-class truck:
-    def create(truck : structs.Truck):
-        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
-        cursor = connection.cursor()
-        
-        listed = encode(truck.listise())
-
+    if idType == int:
         try:
-            cursor.execute(f"""insert into trucks values({', '.join(["'" + attribute + "'" if type(attribute) == str else attribute for attribute in listed])});""")
+            id = int(id)
         except Exception as e:
             return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+
+        query = f"delete from {table} where id == {id}"
+    else:
+        query = f"delete from {table} where id == '{id}'"
     
-    def read(id : int):
-        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
-        cursor = connection.cursor()
-
-        result = cursor.execute(f"select * from trucks where id == {id}").fetchall()
-
-        print(result)
-
-        return (result)
+    result = cursor.execute(query)
     
-    def update(truck : structs.Truck):
-        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
-        cursor = connection.cursor()
-        
-        truck = encode(truck.listise())
+    connection.commit()
 
-        id = truck[0]
-
-        ogtruck = truck.read(id)
-
-        if not ogtruck:
-            return "err"
-        
-        ogtruck = encode(structs.Truck(ogtruck).listise())
-
-        indexToWhat = {0: "id", 1: "locations"}
-
-        for att in range(len(truck)):
-            if truck[att] != ogtruck[att]:
-                what = indexToWhat[att]
-                try:
-                    cursor.execute(f"""update trucks set {what} = {truck[att]} where id = {id}""")
-                except Exception as e:
-                    return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
-    
-    def delete(truck : int or structs.Truck):
-        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
-        cursor = connection.cursor()
-        
-        if type(truck) == structs.Truck:
-            truck = truck.id
-
-        cursor.execute(f"delete from trucks where id = {truck}")
+    return True
