@@ -3,6 +3,14 @@ import structs, dbint
 
 api = fastapi.FastAPI()
 
+api.add_middleware(
+    fastapi.middleware.cors.CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @api.get("/", tags=["Root"])
 def root():
     return {"code": 200}
