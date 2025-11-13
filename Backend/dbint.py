@@ -1,10 +1,11 @@
 import sqlite3, typing, os
-#bcrypt, typing, datetime, random jwt, os
+#sqlite3, bcrypt, typing, datetime, random jwt, os
 import structs
 
 os.chdir("\\".join(__file__.split("\\")[:-1]))
 
-chars = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+chars = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"]
+nums = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
 secret = "bbda1398-4214-424b-8e0a-3b6582f00913"
 
@@ -95,7 +96,7 @@ def read(table : str, id):
 
     if not result:
         return False
-    
+
     result = [decode(el) for el in result[0]]
 
     return result
@@ -123,7 +124,8 @@ def update(table : str, id, what, to):
     connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
     cursor = connection.cursor()
 
-    if what not in [el["name"] for el in structs.types[table]]:
+    columns = [el["name"] for el in structs.types[table]]
+    if what not in columns:
         return 400
 
     original = check(table, id)
@@ -133,15 +135,30 @@ def update(table : str, id, what, to):
     id, to = encode([id, to])
 
     idType = structs.types[table][0]["type"]
+    toType = structs.types[table][columns.index(what)]["type"]
 
     if idType == int:
         try:
             id = int(id)
-            query = f"""update {table} set {what} = {to} where id = {id}"""
+            if toType == int:
+                try:
+                    to = int(to)
+                    query = f"""update {table} set {what} = {to} where id = {id}"""
+                except Exception as e:
+                    return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+            else:
+                query = f"""update {table} set {what} = '{to}' where id = {id}"""
         except Exception as e:
             return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
     else:
-        query = f"""update {table} set {what} = {to} where id = '{id}'"""
+        if toType == int:
+            try:
+                to = int(to)
+                query = f"""update {table} set {what} = {to} where id = '{id}'"""
+            except Exception as e:
+                return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+        else:
+            query = f"""update {table} set {what} = '{to}' where id = '{id}'"""
     
     cursor.execute(query)
     

@@ -165,8 +165,8 @@ class Driver:
 
 class Truck:
     @api.post("/truck", tags=["Truck"])
-    def create_truck(id : int, routeid : int, driverid : int = None, capacity : int = None):
-        result = dbint.create("trucks", structs.Truck(id, capacity, routeid, driverid))
+    def create_truck(id : int, routeid : int, long : float, lat : float, driverid : int = None, capacity : int = None):
+        result = dbint.create("trucks", structs.Truck(id, capacity, long, lat, routeid, driverid))
         if result == True:
             return {"code": 200}
         if result == "sqlite3.IntegrityError: UNIQUE constraint failed: trucks.id":
@@ -218,13 +218,3 @@ class Truck:
 import uvicorn
 
 uvicorn.run(api, port=5089)
-
-"""
-Status Codes
-200 - OK
-201 - Created
-400 - Bad Request - Client error, server can/will not process request
-401 - Unauthorized - Unauthenticated, no credentials attached
-403 - Forbidden - Authenticated, unpermitted
-404 - Not Found - Server cannot find requested resource
-"""

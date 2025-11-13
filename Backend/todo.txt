@@ -1,0 +1,4 @@
+automate id's for create
+implement users
+implement tokens
+implement security/authentication for all endpoints

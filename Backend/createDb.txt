@@ -20,6 +20,8 @@ CREATE TABLE drivers (
 CREATE TABLE trucks (
     id int primary key,
     capacity int not null,
+    long float not null,
+    lat float not null,
     routeid str,
     driverid str
 );
