@@ -116,7 +116,7 @@ def fetch(table : str):
     result = cursor.execute(f"select * from {table}").fetchall()
 
     if result:
-        result = [[decode(el) for el in truck] for truck in result]
+        result = [[decode(el) for el in attribute] for attribute in result]
 
     return result
 
@@ -126,7 +126,11 @@ def update(table : str, id, what, to):
 
     columns = [el["name"] for el in structs.types[table]]
     if what not in columns:
-        return 400
+        return f"AttributeError: No such column '{what}' in {table} table"
+    
+    expectedType = structs.table[table]["type"]
+    if type(to) != expectedType:
+        return f"TypeError: '{type(to)}' object received when expecting '{expectedType}' for '{what}' column"
 
     original = check(table, id)
     if not original:
@@ -135,12 +139,11 @@ def update(table : str, id, what, to):
     id, to = encode([id, to])
 
     idType = structs.types[table][0]["type"]
-    toType = structs.types[table][columns.index(what)]["type"]
 
     if idType == int:
         try:
             id = int(id)
-            if toType == int:
+            if type(to) == int:
                 try:
                     to = int(to)
                     query = f"""update {table} set {what} = {to} where id = {id}"""
@@ -151,7 +154,7 @@ def update(table : str, id, what, to):
         except Exception as e:
             return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
     else:
-        if toType == int:
+        if type(to) == int:
             try:
                 to = int(to)
                 query = f"""update {table} set {what} = {to} where id = '{id}'"""

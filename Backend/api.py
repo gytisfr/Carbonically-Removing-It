@@ -3,6 +3,14 @@ import structs, dbint
 
 api = fastapi.FastAPI()
 
+api.add_middleware(
+    fastapi.middleware.cors.CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @api.get("/", tags=["Root"])
 def root():
     return {"code": 200}
@@ -44,8 +52,6 @@ class Client:
         result = dbint.update("clients", id, what, to)
         if result == True:
             return {"code": 200}
-        if result == 400:
-            return {"code": 400, "error": f"AttributeError: No such column '{what}' in clients table"}
         if result == 404:
             return {"code": 404}
         return {"code": 400, "error": result}

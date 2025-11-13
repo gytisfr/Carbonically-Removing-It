@@ -4,7 +4,7 @@
 - Run api.py either by:
 - - Opening the file
 - - Dragging the file onto command prompt
-- - Typing `python {filePath}` into your command line 
+- - Typing `python "{filePath}"` into your command line
 - Congrats
 
 You can check whether it's working by going to 127.0.0.1:5089
