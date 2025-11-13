@@ -97,7 +97,7 @@ const Tracker = () => {
   };
 
   return (
-    <div className="h-screen flex bg-white/80">
+    <div className="h-screen flex ">
       <LoadScript
         googleMapsApiKey={GOOGLE_MAPS_API_KEY}
         onLoad={() => setIsScriptLoaded(true)}

@@ -5,6 +5,9 @@ import Login from './pages/Login';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import RoutesPage from './pages/Routes';
+import ClientsPage from './pages/Clients';
+import DriversPage from './pages/Drivers';
+import TrucksPage from './pages/Trucks';
 import Divider from './components/divider';
 
 function App() {
@@ -16,6 +19,9 @@ function App() {
         <Routes>
           <Route path='/' element={<Tracker />} />
           <Route path='/routes' element={<RoutesPage />} />
+          <Route path='/clients' element={<ClientsPage />} />
+          <Route path='/drivers' element={<DriversPage />} />
+          <Route path='/trucks' element={<TrucksPage />} />
           <Route path='/login' element={<Login />} />
           <Route path='*' element={<h1>Page Not Found 404</h1>} />
         </Routes>
