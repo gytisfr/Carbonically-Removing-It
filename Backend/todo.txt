@@ -1,4 +1,8 @@
 automate id's for create
-implement users
-implement tokens
 implement security/authentication for all endpoints
+
+users update
+cleanup update code (the adding quotes for strings for id's is ugly)
+remove inter-routine calls (existance checks should be done through the api script not dbint)
+check returned information (do users need to know whether a deleted account existed in the first place or whether a checked/deleted token is invalid)
+general code cleanup

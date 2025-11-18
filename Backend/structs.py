@@ -22,6 +22,12 @@ types = {
         {"name": "lat", "type": float, "required": True},
         {"name": "routeid", "type": str, "required": False},
         {"name": "driverid", "type": str, "required": False}
+    ],
+    "users": [
+        {"name": "id", "type": int, "required": True},
+        {"name": "username", "type": str, "required": True},
+        {"name": "password", "type": str, "required": True},
+        {"name": "token", "type": str, "required": False}
     ]
 }
 

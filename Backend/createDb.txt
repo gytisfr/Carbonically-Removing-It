@@ -1,27 +1,34 @@
 CREATE TABLE clients (
-    id int primary key,
-    name str not null,
-    location str not null,
-    carbontype int not null,
-    producer bool not null
+    id integer primary key,
+    name text not null,
+    location text not null,
+    carbontype integer not null,
+    producer boolean not null
 );
 
 CREATE TABLE routes (
-    id str primary key,
-    locations str not null
+    id text primary key,
+    locations text not null
 );
 
 CREATE TABLE drivers (
-    id int primary key,
-    name str not null,
-    position str not null
+    id integer primary key,
+    name text not null,
+    position text not null
 );
 
 CREATE TABLE trucks (
-    id int primary key,
-    capacity int not null,
-    long float not null,
-    lat float not null,
-    routeid str,
-    driverid str
+    id integer primary key,
+    capacity integer not null,
+    long real not null,
+    lat real not null,
+    routeid text,
+    driverid text
+);
+
+CREATE TABLE users (
+    id integer primary key autoincrement,
+    username text unique not null,
+    password text not null,
+    token text
 );

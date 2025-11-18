@@ -1,5 +1,4 @@
-import sqlite3, typing, os
-#sqlite3, bcrypt, typing, datetime, random jwt, os
+import sqlite3, bcrypt, datetime, random, typing, jwt, os
 import structs
 
 os.chdir("\\".join(__file__.split("\\")[:-1]))
@@ -17,7 +16,7 @@ def encode(text : typing.Union[str, list]):
     #%   %25
 
     def actual(string : str):
-        return string.replace("%", "%25").replace("-", "%2D").replace("\\", "%5C").replace("'", "%27").replace('"', "%22")
+        return string.replace("%", "%25").replace("-", "%2D").replace("\\", "%5C").replace("'", "%27").replace('"', "%22").replace("$", "%24")
     
     if type(text) == list:
         new = []
@@ -31,7 +30,7 @@ def encode(text : typing.Union[str, list]):
 
 def decode(text : typing.Union[int, list]):
     def actual(string : str):
-        return string.replace('%22', '"').replace("%27", "'").replace("%5C", "\\").replace("%2D", "-").replace("%25", "%")
+        return string.replace("%24", "$").replace('%22', '"').replace("%27", "'").replace("%5C", "\\").replace("%2D", "-").replace("%25", "%")
     
     if type(text) == list:
         new = []
@@ -85,15 +84,17 @@ def read(table : str, id):
     if idType == int:
         try:
             id = int(id)
-        except Exception as e:
-            return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
-
-        query = f"select * from {table} where id == {id}"
+        except:
+            pass
+        query = f"select * from {table} where id = {id};"
     else:
-        query = f"select * from {table} where id == '{id}'"
+        query = f"select * from {table} where id = '{id}';"
     
-    result = cursor.execute(query).fetchall()
-
+    try:
+        result = cursor.execute(query).fetchall()
+    except Exception as e:
+        return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+    
     if not result:
         return False
 
@@ -113,28 +114,26 @@ def fetch(table : str):
     connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
     cursor = connection.cursor()
     
-    result = cursor.execute(f"select * from {table}").fetchall()
+    result = cursor.execute(f"select * from {table};").fetchall()
 
     if result:
         result = [[decode(el) for el in attribute] for attribute in result]
 
     return result
 
-def update(table : str, id, what, to):
+def update(table : str, id, what : str, to):
     connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
     cursor = connection.cursor()
+
+    what = what.lower()
 
     columns = [el["name"] for el in structs.types[table]]
     if what not in columns:
         return f"AttributeError: No such column '{what}' in {table} table"
     
-    expectedType = structs.table[table]["type"]
+    expectedType = [el["type"] for el in structs.types[table] if el["name"] == what][0]
     if type(to) != expectedType:
         return f"TypeError: '{type(to)}' object received when expecting '{expectedType}' for '{what}' column"
-
-    original = check(table, id)
-    if not original:
-        return 404
     
     id, to = encode([id, to])
 
@@ -146,24 +145,27 @@ def update(table : str, id, what, to):
             if type(to) == int:
                 try:
                     to = int(to)
-                    query = f"""update {table} set {what} = {to} where id = {id}"""
+                    query = f"""update {table} set {what} = {to} where id = {id};"""
                 except Exception as e:
-                    return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+                    pass
             else:
-                query = f"""update {table} set {what} = '{to}' where id = {id}"""
+                query = f"""update {table} set {what} = '{to}' where id = {id};"""
         except Exception as e:
-            return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+            pass
     else:
         if type(to) == int:
             try:
                 to = int(to)
-                query = f"""update {table} set {what} = {to} where id = '{id}'"""
-            except Exception as e:
-                return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+                query = f"""update {table} set {what} = {to} where id = '{id}';"""
+            except:
+                pass
         else:
-            query = f"""update {table} set {what} = '{to}' where id = '{id}'"""
+            query = f"""update {table} set {what} = '{to}' where id = '{id}';"""
     
-    cursor.execute(query)
+    try:
+        cursor.execute(query)
+    except Exception as e:
+        return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
     
     connection.commit()
 
@@ -172,11 +174,6 @@ def update(table : str, id, what, to):
 def delete(table : str, id):
     connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
     cursor = connection.cursor()
-
-    exists = check(table, id)
-
-    if not exists:
-        return 404
     
     id = encode(id)
 
@@ -185,15 +182,178 @@ def delete(table : str, id):
     if idType == int:
         try:
             id = int(id)
-        except Exception as e:
-            return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+        except:
+            pass
 
-        query = f"delete from {table} where id == {id}"
+        query = f"delete from {table} where id = {id};"
     else:
-        query = f"delete from {table} where id == '{id}'"
+        query = f"delete from {table} where id = '{id}';"
     
-    result = cursor.execute(query)
+    try:
+        cursor.execute(query)
+    except Exception as e:
+        return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
     
     connection.commit()
 
     return True
+
+class User:
+    def create(username : str, password : str):
+        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
+        cursor = connection.cursor()
+
+        username = encode(username)
+
+        hash = encode(bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8"))
+
+        try:
+            cursor.execute(f"insert into users(username, password) values('{username}', '{hash}');")
+        except Exception as e:
+            return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+
+        connection.commit()
+
+        id = User.from_username(username)
+
+        preToken = {"id": id, "timestamp": datetime.datetime.now().timestamp()}
+        token = jwt.encode(preToken, secret, algorithm="HS256")
+
+        encodedToken = encode(token)
+
+        try:
+            cursor.execute(f"update users set token = '{encodedToken}' where id = {id};")
+        except Exception as e:
+            return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+
+        connection.commit()
+        
+        return [token]
+    
+    def read(id : int):
+        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
+        cursor = connection.cursor()
+        
+        result = cursor.execute(f"select * from users where id = {id};").fetchall()
+
+        if not result:
+            return False
+
+        result = decode(result[0][1])
+
+        return result
+    
+    def check(id : int):
+        result = User.read(id)
+
+        if type(result) == str:
+            return bool(result)
+    
+        return result
+    
+    def from_username(username : str):
+        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
+        cursor = connection.cursor()
+
+        username = encode(username)
+        
+        result = cursor.execute(f"select * from users where username = '{username}';").fetchall()
+
+        if not result:
+            return False
+
+        return result[0][0]
+    
+    def update(id : int, what : str, to):
+        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
+        cursor = connection.cursor()
+
+        what = what.lower()
+
+        if what != "username":
+            return f"AttributeError: No such column '{what}' in {table} table"
+        
+        to = encode(to)
+        
+        try:
+            cursor.execute(f"""update users set {what} = '{to}' where id = {id};""")
+        except Exception as e:
+            return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+        
+        connection.commit()
+
+        return True
+    
+    def delete(id : int):
+        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
+        cursor = connection.cursor()
+        
+        try:
+            cursor.execute(f"delete from users where id = {id};")
+        except Exception as e:
+            return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+        
+        connection.commit()
+
+        return True
+
+class Authentication:
+    def login(id : int, password : str):
+        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
+        cursor = connection.cursor()
+
+        passwordHash = cursor.execute(f"select password from users where id = {id};").fetchall()
+
+        if not passwordHash:
+            return False
+
+        passwordHashDecoded = decode(passwordHash[0][0])
+        match = bcrypt.checkpw(password.encode("utf-8"), passwordHashDecoded.encode("utf-8"))
+
+        if not match:
+            return False
+
+        preToken = {"id": id, "timestamp": datetime.datetime.now().timestamp()}
+        token = jwt.encode(preToken, secret, algorithm="HS256")
+
+        try:
+            cursor.execute(f"update users set token = '{token}' where id = {id};")
+        except Exception as e:
+            return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+        
+        connection.commit()
+
+        return token
+    
+    def logout(token : str):
+        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
+        cursor = connection.cursor()
+
+        token = encode(token)
+
+        id = cursor.execute(f"select id from users where token = '{token}';").fetchall()
+
+        if not id:
+            return False
+
+        try:
+            cursor.execute(f"update users set token = '' where id = {id[0][0]};")
+        except Exception as e:
+            return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
+        
+        connection.commit()
+
+        return True
+    
+    def validate(token : str):
+        connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
+        cursor = connection.cursor()
+
+        token = encode(token)
+
+        id = cursor.execute(f"select id from users where token = '{token}';").fetchall()
+
+        if not id:
+            return False
+
+        return id[0][0]

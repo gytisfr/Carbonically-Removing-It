@@ -1,10 +1,12 @@
 import fastapi
 import structs, dbint
 
+from fastapi.middleware.cors import CORSMiddleware
+
 api = fastapi.FastAPI()
 
 api.add_middleware(
-    fastapi.middleware.cors.CORSMiddleware,
+    CORSMiddleware,
     allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
@@ -48,21 +50,26 @@ class Client:
         return {"code": 200, "data": [dict(zip(columns, client)) for client in result]}
 
     @api.patch("/client", tags=["Client"])
-    def update_client(id : int, what : str, to : str):
+    def update_client(id : int, what : str, to):
+        exists = dbint.check("clients", id)
+        if not exists:
+            return {"code": 404}
+        
         result = dbint.update("clients", id, what, to)
         if result == True:
             return {"code": 200}
-        if result == 404:
-            return {"code": 404}
+        if result == 400:
+            return {"code": 400, "error": f"AttributeError: No such column '{what}' in clients table"}
         return {"code": 400, "error": result}
 
     @api.delete("/client", tags=["Client"])
     def delete_client(id : int):
+        exists = dbint.check("clients", id)
+        if not exists:
+            return {"code": 404}
         result = dbint.delete("clients", id)
         if result == True:
             return {"code": 200}
-        if result == 404:
-            return {"code": 404}
         return {"code": 400, "error": result}
 
 class Route:
@@ -98,14 +105,16 @@ class Route:
         return {"code": 200, "data": [dict(zip(columns, route)) for route in result]}
 
     @api.patch("/route", tags=["Route"])
-    def update_route(id : int, what : str, to : str):
+    def update_route(id : int, what : str, to):
+        exists = dbint.check("routes", id)
+        if not exists:
+            return {"code": 404}
+        
         result = dbint.update("routes", id, what, to)
         if result == True:
             return {"code": 200}
         if result == 400:
             return {"code": 400, "error": f"AttributeError: No such column '{what}' in routes table"}
-        if result == 404:
-            return {"code": 404}
         return {"code": 400, "error": result}
 
     @api.delete("/route", tags=["Route"])
@@ -150,14 +159,16 @@ class Driver:
         return {"code": 200, "data": [dict(zip(columns, driver)) for driver in result]}
 
     @api.patch("/driver", tags=["Driver"])
-    def update_driver(id : int, what : str, to : str):
+    def update_driver(id : int, what : str, to):
+        exists = dbint.check("drivers", id)
+        if not exists:
+            return {"code": 404}
+        
         result = dbint.update("drivers", id, what, to)
         if result == True:
             return {"code": 200}
         if result == 400:
             return {"code": 400, "error": f"AttributeError: No such column '{what}' in drivers table"}
-        if result == 404:
-            return {"code": 404}
         return {"code": 400, "error": result}
 
     @api.delete("/driver", tags=["Driver"])
@@ -202,14 +213,16 @@ class Truck:
         return {"code": 200, "data": [dict(zip(columns, truck)) for truck in result]}
 
     @api.patch("/truck", tags=["Truck"])
-    def update_truck(id : int, what : str, to : str):
+    def update_truck(id : int, what : str, to):
+        exists = dbint.check("trucks", id)
+        if not exists:
+            return {"code": 404}
+        
         result = dbint.update("trucks", id, what, to)
         if result == True:
             return {"code": 200}
         if result == 400:
             return {"code": 400, "error": f"AttributeError: No such column '{what}' in trucks table"}
-        if result == 404:
-            return {"code": 404}
         return {"code": 400, "error": result}
 
     @api.delete("/truck", tags=["Truck"])
@@ -219,6 +232,75 @@ class Truck:
             return {"code": 200}
         if result == 404:
             return {"code": 404}
+        return {"code": 400, "error": result}
+
+class User:
+    @api.post("/users", tags=["Users"])
+    def create_user(username : str, password : str):
+        result = dbint.User.create(username, password)
+        if type(result) != list:
+            return {"code": 400, "error": result}
+        return {"code": 201, "token": result[0]}
+    
+    @api.get("/users", tags=["Users"])
+    def read_user(id : int):
+        result = dbint.User.read(id)
+        if result:
+            return {"code": 200, "username": result}
+        return {"code": 400, "error": result}
+    
+    @api.get("/users/check", tags=["Users"])
+    def check_user(id : int):
+        result = dbint.User.check(id)
+        return {"code": 200 if result else 404}
+    
+    @api.get("/users/validate/username", tags=["Users"])
+    def validate_username(username : str):
+        result = dbint.User.from_username(username)
+        if result:
+            return {"code": 200, "id": result}
+        return {"code": 400, "error": result}
+    
+    @api.patch("/users", tags=["Users"])
+    def update_user(id : int, what : str, to):
+        result = dbint.User.update(id, what, to)
+        if result == True:
+            return {"code": 200}
+        return {"code": 400, "error": result}
+    
+    @api.delete("/users", tags=["Users"])
+    def delete_user(id : int):
+        result = dbint.User.delete(id)
+        if result == True:
+            return {"code": 200}
+        return {"code": 400, "error": result}
+
+class Authentication:
+    @api.post("/auth/login", tags=["Authentication"])
+    def login(id : int, password : str):
+        result = dbint.Authentication.login(id, password)
+        if result:
+            return {"code": 200, "token": "placeholderTokenText"}
+        if result == False:
+            return {"code": 401}
+        return {"code": 400, "error": result}
+    
+    @api.post("/auth/logout", tags=["Authentication"])
+    def logout(token : str):
+        result = dbint.Authentication.logout(token)
+        if result:
+            return {"code": 200}
+        if result == False:
+            return {"code": 401}
+        return {"code": 400, "error": result}
+    
+    @api.post("/auth/validate/token", tags=["Authentication"])
+    def validate_token(token : str):
+        result = dbint.Authentication.validate_token(token)
+        if result:
+            return {"code": 200, "id": result}
+        if result == False:
+            return {"code": 401}
         return {"code": 400, "error": result}
 
 import uvicorn
