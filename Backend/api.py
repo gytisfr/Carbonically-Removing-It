@@ -280,7 +280,7 @@ class Authentication:
     def login(username : str, password : str):
         result = dbint.Authentication.login(username, password)
         if result:
-            return {"code": 200, "token": "placeholderTokenText"}
+            return {"code": 200, "token": result}
         if result == False:
             return {"code": 401}
         return {"code": 400, "error": result}
