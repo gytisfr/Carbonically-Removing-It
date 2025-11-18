@@ -1,6 +1,29 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Navbar = () => {
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      // Send token to logout endpoint
+      const url = `http://127.0.0.1:5089/auth/logout?token=${encodeURIComponent(token)}`;
+      console.log("Logging out via URL:", url);
+
+      await fetch(url, { method: "POST" });
+
+      // Clear token
+      localStorage.removeItem("token");
+
+      // Redirect to login
+      navigate("/login");
+    } catch (err) {
+      console.error("Error logging out:", err);
+    }
+  };
+
   return (
     <nav className="w-full bg-white text-black">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -36,9 +59,13 @@ const Navbar = () => {
               </div>
             </div>
 
-            {/* <Link to="/login" className="hover:text-black ease-in-out duration-300 bg-carbonOrange py-2 px-3 text-white cursor-pointer">
+            {/* Logout button */}
+            <button
+              onClick={handleLogout}
+              className="hover:text-black ease-in-out duration-300 bg-carbonOrange py-2 px-3 text-white cursor-pointer "
+            >
               Logout
-            </Link> */}
+            </button>
           </div>
         </div>
       </div>

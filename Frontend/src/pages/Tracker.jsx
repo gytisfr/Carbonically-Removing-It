@@ -158,7 +158,7 @@ export default function Tracker() {
   };
 
   return (
-    <div className="h-screen min-h-screen flex flex-row bg-white/80">
+    <div className="h-screen min-h-screen flex flex-row ">
       {/* MAP */}
       <main className="flex-grow p-6">
         <div className="h-full w-full bg-white rounded-sm shadow-2xl">
@@ -233,7 +233,7 @@ export default function Tracker() {
       </main>
 
       {/* SIDEBAR */}
-      <div className="h-full w-96 bg-white rounded-sm ml-6 p-5 shadow-2xl overflow-auto">
+      <div className="h-full w-96 bg-white p-5 overflow-auto">
         <h1 className="text-3xl font-bold mb-4">Routes</h1>
 
         {directionsList.map((r) => (

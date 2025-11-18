@@ -14,28 +14,23 @@ const Login = () => {
       username
     )}&password=${encodeURIComponent(password)}`;
 
-    // Log the URL to see what is sent
     console.log("Login URL:", url);
 
     try {
-      const res = await fetch(url, {
-        method: "POST",
-      });
-
+      const res = await fetch(url, { method: "POST" });
       const data = await res.json();
 
       console.log("Login response:", data);
 
-      if (!res.ok) {
+      if (res.ok && data.token) {
+        // Store the JWT token
+        localStorage.setItem("token", data.token);
+
+        // Redirect to home page
+        navigate("/");
+      } else {
         alert(data?.message || "Login failed");
-        return;
       }
-
-      // Store token if backend returns one
-      localStorage.setItem("token", data.token);
-
-      // Redirect home
-      navigate("/");
     } catch (err) {
       console.error("Error during login:", err);
       alert("Something went wrong");

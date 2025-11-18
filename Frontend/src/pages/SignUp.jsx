@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const SignUp = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const navigate = useNavigate();
 
   const handleSignUp = async (e) => {
     e.preventDefault();
@@ -19,7 +20,6 @@ const SignUp = () => {
       username
     )}&password=${encodeURIComponent(password)}`;
 
-    // Log final URL so you can see exactly what is sent
     console.log("Signup URL:", url);
 
     try {
@@ -29,6 +29,11 @@ const SignUp = () => {
 
       const data = await res.json();
       console.log("Signup response:", data);
+
+      if (res.ok) {
+        // Redirect to login page after successful signup
+        navigate("/login");
+      }
     } catch (err) {
       console.error("Error during signup:", err);
     }
@@ -72,7 +77,7 @@ const SignUp = () => {
 
           <button
             type="submit"
-            className="bg-carbonOrange hover:opacity-90 text-white p-2 rounded font-semibold transition"
+            className="bg-carbonOrange hover:opacity-90 text-white p-2 rounded font-semibold transition cursor-pointer"
           >
             Create Account
           </button>

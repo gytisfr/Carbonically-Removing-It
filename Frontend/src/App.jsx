@@ -1,5 +1,7 @@
-import './App.css'
-import {BrowserRouter as Router, Routes, Route} from 'react-router-dom';
+import './App.css';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import ProtectedRoute from './components/ProtectedRoute';
+import PublicRoute from './components/PublicRoute';
 import Tracker from './pages/Tracker';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
@@ -11,26 +13,91 @@ import DriversPage from './pages/Drivers';
 import TrucksPage from './pages/Trucks';
 import Divider from './components/divider';
 
-function App() {
+function AppWrapper() {
+  const location = useLocation();
+  const hideNavFooter = location.pathname === '/login' || location.pathname === '/signup';
+
   return (
-    <div className='w-full'>
-      <Router>
-        <Navbar />
-        <Divider />
-        <Routes>
-          <Route path='/' element={<Tracker />} />
-          <Route path='/routes' element={<RoutesPage />} />
-          <Route path='/clients' element={<ClientsPage />} />
-          <Route path='/drivers' element={<DriversPage />} />
-          <Route path='/trucks' element={<TrucksPage />} />
-          <Route path='/login' element={<Login />} />
-          <Route path='/signup' element={<SignUp />} />
-          <Route path='*' element={<h1>Page Not Found 404</h1>} />
-        </Routes>
-        <Footer />
-      </Router>
-    </div>
-  )
+    <>
+      {!hideNavFooter && <Navbar />}
+      {!hideNavFooter && <Divider />}
+
+      <Routes>
+        {/* Public routes */}
+        <Route
+          path='/login'
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path='/signup'
+          element={
+            <PublicRoute>
+              <SignUp />
+            </PublicRoute>
+          }
+        />
+
+        {/* Protected routes */}
+        <Route
+          path='/'
+          element={
+            <ProtectedRoute>
+              <Tracker />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path='/routes'
+          element={
+            <ProtectedRoute>
+              <RoutesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path='/clients'
+          element={
+            <ProtectedRoute>
+              <ClientsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path='/drivers'
+          element={
+            <ProtectedRoute>
+              <DriversPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path='/trucks'
+          element={
+            <ProtectedRoute>
+              <TrucksPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Fallback route */}
+        <Route path='*' element={<h1>Page Not Found 404</h1>} />
+      </Routes>
+
+      {!hideNavFooter && <Footer />}
+    </>
+  );
 }
 
-export default App
+function App() {
+  return (
+    <Router>
+      <AppWrapper />
+    </Router>
+  );
+}
+
+export default App;
