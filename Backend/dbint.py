@@ -298,16 +298,19 @@ class User:
         return True
 
 class Authentication:
-    def login(id : int, password : str):
+    def login(username : str, password : str):
         connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
         cursor = connection.cursor()
 
-        passwordHash = cursor.execute(f"select password from users where id = {id};").fetchall()
+        username = encode(username)
 
-        if not passwordHash:
+        user = cursor.execute(f"select id, password from users where username = '{username}';").fetchall()
+
+        if not user:
             return False
 
-        passwordHashDecoded = decode(passwordHash[0][0])
+        id = user[0][0]
+        passwordHashDecoded = decode(user[0][1])
         match = bcrypt.checkpw(password.encode("utf-8"), passwordHashDecoded.encode("utf-8"))
 
         if not match:
