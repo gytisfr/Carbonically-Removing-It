@@ -277,8 +277,8 @@ class User:
 
 class Authentication:
     @api.post("/auth/login", tags=["Authentication"])
-    def login(id : int, password : str):
-        result = dbint.Authentication.login(id, password)
+    def login(username : str, password : str):
+        result = dbint.Authentication.login(username, password)
         if result:
             return {"code": 200, "token": "placeholderTokenText"}
         if result == False:
