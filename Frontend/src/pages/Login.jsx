@@ -9,27 +9,35 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
 
+    // Build URL with query params
+    const url = `http://127.0.0.1:5089/auth/login?username=${encodeURIComponent(
+      username
+    )}&password=${encodeURIComponent(password)}`;
+
+    // Log the URL to see what is sent
+    console.log("Login URL:", url);
+
     try {
-      const res = await fetch("http://127.0.0.1:5089/auth/login", {
+      const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
       });
 
       const data = await res.json();
+
+      console.log("Login response:", data);
 
       if (!res.ok) {
         alert(data?.message || "Login failed");
         return;
       }
 
-      // Save token
+      // Store token if backend returns one
       localStorage.setItem("token", data.token);
 
       // Redirect home
       navigate("/");
     } catch (err) {
-      console.error(err);
+      console.error("Error during login:", err);
       alert("Something went wrong");
     }
   };
@@ -63,7 +71,7 @@ const Login = () => {
 
           <button
             type="submit"
-            className="bg-carbonOrange cursor-pointer hover:opacity-90 text-white p-2 rounded font-semibold transition"
+            className="bg-carbonOrange hover:opacity-90 text-white p-2 rounded font-semibold transition"
           >
             Log In
           </button>
