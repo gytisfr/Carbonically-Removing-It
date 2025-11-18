@@ -1,202 +1,270 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
+import axios from "axios";
 import {
   GoogleMap,
   LoadScript,
   Marker,
-  DirectionsRenderer,
+  Polyline,
 } from "@react-google-maps/api";
 
-// Map container style
-const containerStyle = {
+const API_KEY = "AIzaSyAZ27Ls3s5AzUVOSXKcGP1RFxWnIcIkvq0";
+const API_URL = "http://127.0.0.1:5089";
+
+const mapContainerStyle = {
   width: "100%",
   height: "100%",
-  borderRadius: "0.375rem",
 };
 
-const initialCenter = { lat: 57.1497, lng: -2.0943 }; // Aberdeen
+const defaultCenter = { lat: 57.1497, lng: -2.0943 }; 
 
-
-const GOOGLE_MAPS_API_KEY = "AIzaSyAZ27Ls3s5AzUVOSXKcGP1RFxWnIcIkvq0";
-
-const scottishCities = [
-  { name: "Aberdeen", lat: 57.1497, lng: -2.0943 },
-  { name: "Dundee", lat: 56.462, lng: -2.9707 },
-  { name: "Edinburgh", lat: 55.9533, lng: -3.1883 },
-  { name: "Glasgow", lat: 55.8642, lng: -4.2518 },
-];
-
-const truckIcon = {
-  url: "https://uxwing.com/wp-content/themes/uxwing/download/logistics-shipping-delivery/delivery-truck-icon.png",
-  scaledSize: { width: 40, height: 40 },
-};
-
-const Tracker = () => {
-  const mapRef = useRef(null);
-  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
+export default function Tracker() {
+  const [routes, setRoutes] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [trucks, setTrucks] = useState([]);
   const [directionsList, setDirectionsList] = useState([]);
-  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [selectedRouteId, setSelectedRouteId] = useState(null);
+
+  const mapRef = useRef(null);
+  const truckIcon = "https://uxwing.com/wp-content/themes/uxwing/download/logistics-shipping-delivery/delivery-truck-icon.png";
+
+  useEffect(() => {
+    setSelectedRouteId(null);
+  }, []);
+
+  const fetchClients = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/client/fetch`);
+      if (res.data.code === 200) setClients(res.data.data);
+    } catch (err) {
+      console.error("Client fetch error:", err);
+    }
+  };
+
+  const fetchRoutes = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/route/fetch`);
+      if (res.data.code === 200) setRoutes(res.data.data);
+    } catch (err) {
+      console.error("Route fetch error:", err);
+    }
+  };
+
+  const fetchDrivers = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/driver/fetch`);
+      if (res.data.code === 200) setDrivers(res.data.data);
+    } catch (err) {
+      console.error("Driver fetch error:", err);
+    }
+  };
+
+  const fetchTrucks = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/truck/fetch`);
+      if (res.data.code === 200) setTrucks(res.data.data);
+    } catch (err) {
+      console.error("Truck fetch error:", err);
+    }
+  };
 
 
-  const createRoute = (origin, destination) =>
-    new Promise((resolve, reject) => {
-      const service = new window.google.maps.DirectionsService();
-      service.route(
+  useEffect(() => {
+    const load = async () => {
+      await fetchClients();
+      await fetchRoutes();
+      await fetchDrivers();
+      await fetchTrucks();
+    };
+    load();
+  }, []);
+  const buildGoogleRoute = (locationsStr) => {
+    return new Promise((resolve) => {
+      const ids = locationsStr.split(",").map((x) => x.trim());
+      const cityList = ids
+        .map((id) => clients.find((c) => c.id.toString() === id)?.location)
+        .filter(Boolean);
+
+      if (cityList.length < 2) return resolve(null);
+
+      const start = cityList[0];
+      const end = cityList[cityList.length - 1];
+      const waypoints = cityList.slice(1, -1).map((loc) => ({
+        location: loc,
+        stopover: true,
+      }));
+
+      const dirService = new window.google.maps.DirectionsService();
+      dirService.route(
         {
-          origin,
-          destination,
+          origin: start,
+          destination: end,
+          waypoints,
           travelMode: window.google.maps.TravelMode.DRIVING,
         },
         (result, status) => {
-          if (status === "OK") resolve(result);
-          else reject(status);
+          if (status === "OK") resolve({ result, cityList });
+          else resolve(null);
         }
       );
     });
-
-
-  const handleMapLoad = useCallback(async (map) => {
-    mapRef.current = map;
-    const routes = [];
-
-    for (let i = 0; i < scottishCities.length - 1; i++) {
-      const origin = scottishCities[i];
-      const destination = scottishCities[i + 1];
-      routes.push({ origin, destination, index: i });
-    }
-
-    try {
-      const results = await Promise.all(
-        routes.map((r) =>
-          createRoute(r.origin, r.destination).then((directions) => ({
-            ...r,
-            directions,
-
-            driver: `Driver ${r.index + 1}`,
-            truckType: ["Truck 1", "Truck 2", "Truck 3", "Truck 4"][r.index % 4],
-          }))
-        )
-      );
-      setDirectionsList(results);
-    } catch (err) {
-      console.error("Error loading routes:", err);
-    }
-  }, []);
-
-  /** Fit map view to specific route */
-  const fitToRoute = (directionsResult) => {
-    if (!mapRef.current || !directionsResult) return;
-    const bounds = new window.google.maps.LatLngBounds();
-    directionsResult.routes[0].overview_path.forEach((p) => bounds.extend(p));
-    mapRef.current.fitBounds(bounds);
   };
+  useEffect(() => {
+    const buildRoutes = async () => {
+      if (!routes.length || !clients.length) return;
 
-  /** Handle route selection */
-  const handleSelectRoute = (route) => {
-    fitToRoute(route.directions);
-    setSelectedRoute(route);
+      const built = await Promise.all(
+        routes.map((r) => buildGoogleRoute(r.locations))
+      );
+
+      const newList = routes
+        .map((r, i) => {
+          if (!built[i]) return null;
+          return {
+            id: r.id,
+            directions: built[i].result,
+            cities: built[i].cityList,
+            truck: trucks.find((t) => t.routeid === r.id),
+            driver: drivers.find(
+              (d) =>
+                trucks.find((t) => t.routeid === r.id)?.driverid ===
+                d.id.toString()
+            ),
+          };
+        })
+        .filter(Boolean);
+
+      setDirectionsList(newList);
+    };
+
+    buildRoutes();
+  }, [routes, clients, drivers, trucks]);
+
+  const focusRoute = (routeObj) => {
+    if (!routeObj || !mapRef.current) return;
+
+    const bounds = new window.google.maps.LatLngBounds();
+    const path = routeObj.directions.routes[0].overview_path;
+    path.forEach((point) => bounds.extend(point));
+
+    mapRef.current.fitBounds(bounds, 100);
+
+    const MAX_ZOOM = 12;
+    if (mapRef.current.getZoom() > MAX_ZOOM) {
+      mapRef.current.setZoom(MAX_ZOOM);
+    }
+
+    setSelectedRouteId(routeObj.id);
   };
 
   return (
-    <div className="h-screen flex ">
-      <LoadScript
-        googleMapsApiKey={GOOGLE_MAPS_API_KEY}
-        onLoad={() => setIsScriptLoaded(true)}
-      >
-        <main className="flex-grow flex items-center justify-center p-6">
-          {/* MAP SECTION */}
-          <div className="h-full w-full bg-white rounded-sm shadow-2xl relative">
-            {isScriptLoaded && (
-              <GoogleMap
-                mapContainerStyle={containerStyle}
-                center={initialCenter}
-                zoom={7}
-                onLoad={handleMapLoad}
-                options={{
-                  mapTypeControl: false,
-                  fullscreenControl: false,
-                }}
-              >
-                {/* Truck markers */}
-                {scottishCities.map((city) => (
+    <div className="h-screen min-h-screen flex flex-row bg-white/80">
+      {/* MAP */}
+      <main className="flex-grow p-6">
+        <div className="h-full w-full bg-white rounded-sm shadow-2xl">
+          <LoadScript googleMapsApiKey={API_KEY}>
+            <GoogleMap
+              onLoad={(map) => (mapRef.current = map)}
+              mapContainerStyle={mapContainerStyle}
+              center={defaultCenter}
+              zoom={7}
+              options={{
+                fullscreenControl: false,
+                mapTypeControl: false,
+                zoomControl: false,
+                streetViewControl: false,
+                rotateControl: false,
+                scaleControl: false,
+                keyboardShortcuts: false,
+                clickableIcons: false,
+              }}
+            >
+              {directionsList.map((r, index) => {
+                const path = r.directions.routes[0].overview_path;
+
+                return (
+                  <div key={r.id}>
+                    {/* Black outline */}
+                    <Polyline
+                      path={path}
+                      options={{
+                        strokeColor: "#000000",
+                        strokeWeight: 4,
+                        strokeOpacity: selectedRouteId === r.id ? 0.8 : 0.1,
+                        zIndex: selectedRouteId === r.id ? 100 : index,
+                      }}
+                      onClick={() => focusRoute(r)}
+                    />
+                    {/* Colored route */}
+                    <Polyline
+                      path={path}
+                      options={{
+                        strokeColor: selectedRouteId === r.id ? "#ff0000" : "#0055ff",
+                        strokeWeight: 2,
+                        strokeOpacity: selectedRouteId === r.id ? 1.0 : 0.1,
+                        zIndex: selectedRouteId === r.id ? 101 : index + 0.1,
+                      }}
+                      onClick={() => focusRoute(r)}
+                    />
+                  </div>
+                );
+              })}
+
+              {/* Truck markers */}
+              {directionsList.map((r) => {
+                const truck = r.truck;
+                if (!truck) return null;
+
+                return (
                   <Marker
-                    key={city.name}
-                    position={{ lat: city.lat, lng: city.lng }}
-                    icon={truckIcon}
-                    title={city.name}
-                  />
-                ))}
-
-                {/* Render all routes */}
-                {directionsList.map((r) => (
-                  <DirectionsRenderer
-                    key={r.index}
-                    directions={r.directions}
-                    options={{
-                      suppressMarkers: true,
-                      polylineOptions: {
-                        strokeWeight: 5,
-                        strokeColor:
-                          selectedRoute?.index === r.index
-                            ? "#1E90FF"
-                            : "#999999",
-                      },
+                    key={`truck-${r.id}`}
+                    position={{ lat: truck.lat, lng: truck.long }}
+                    icon={{
+                      url: truckIcon,
+                      scaledSize: new window.google.maps.Size(45, 45),
                     }}
+                    onClick={() => focusRoute(r)}
                   />
-                ))}
-              </GoogleMap>
-            )}
-          </div>
+                );
+              })}
+            </GoogleMap>
+          </LoadScript>
+        </div>
+      </main>
 
-          {/* SIDEBAR */}
-          <div className="h-full w-80 bg-white rounded-sm ml-6 flex flex-col items-start shadow-2xl p-4 overflow-y-auto">
-            <h2 className="text-xl font-semibold mb-3">Routes</h2>
+      {/* SIDEBAR */}
+      <div className="h-full w-96 bg-white rounded-sm ml-6 p-5 shadow-2xl overflow-auto">
+        <h1 className="text-3xl font-bold mb-4">Routes</h1>
 
-            {directionsList.length === 0 && (
-              <p className="text-sm text-gray-500">Loading routes...</p>
-            )}
+        {directionsList.map((r) => (
+          <div
+            key={r.id}
+            className={`p-4 border rounded mb-3 cursor-pointer ${
+              r.id === selectedRouteId
+                ? "bg-blue-200 border-blue-600"
+                : "bg-gray-100"
+            }`}
+            onClick={() => focusRoute(r)}
+          >
+            <p className="font-semibold text-xl">Route {r.id}</p>
+            <p className="text-gray-700">{r.cities.join(" → ")}</p>
 
-            {directionsList.map((r) => (
-              <div
-                key={r.index}
-                className={`w-full p-2 mb-2 rounded-md border ${
-                  selectedRoute?.index === r.index
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-gray-200 hover:bg-gray-50"
-                } cursor-pointer`}
-                onClick={() => handleSelectRoute(r)}
-              >
-                <p className="font-medium text-sm">
-                  {r.origin.name} → {r.destination.name}
-                </p>
-                <p className="text-xs text-gray-500">Click for details</p>
-              </div>
-            ))}
-
-            {/* ROUTE DETAILS */}
-            {selectedRoute && (
-              <div className="mt-4 w-full p-3 border border-gray-300 rounded-lg bg-gray-50">
-                <h3 className="font-semibold text-lg mb-2">
-                  Route Details
-                </h3>
+            {selectedRouteId === r.id && (
+              <div className="mt-3 text-sm">
                 <p>
-                  <strong>From:</strong> {selectedRoute.origin.name}
+                  <strong>Driver:</strong> {r.driver?.name || "None"}
                 </p>
                 <p>
-                  <strong>To:</strong> {selectedRoute.destination.name}
+                  <strong>Driver ID:</strong> {r.driver?.id || "None"}
                 </p>
                 <p>
-                  <strong>Driver:</strong> {selectedRoute.driver}
-                </p>
-                <p>
-                  <strong>Truck Type:</strong> {selectedRoute.truckType}
+                  <strong>Truck ID:</strong> {r.truck?.id || "None"}
                 </p>
               </div>
             )}
           </div>
-        </main>
-      </LoadScript>
+        ))}
+      </div>
     </div>
   );
-};
-
-export default Tracker;
+}
