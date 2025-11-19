@@ -80,18 +80,9 @@ def read(table : str, id):
     id = encode(id)
 
     idType = structs.types[table][0]["type"]
-
-    if idType == int:
-        try:
-            id = int(id)
-        except:
-            pass
-        query = f"select * from {table} where id = {id};"
-    else:
-        query = f"select * from {table} where id = '{id}';"
     
     try:
-        result = cursor.execute(query).fetchall()
+        result = cursor.execute(f"""select * from {table} where id = {"'" if type(id) == str else ""}{id}{"'" if type(id) == str else ""};""").fetchall()
     except Exception as e:
         return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
     
@@ -133,37 +124,15 @@ def update(table : str, id, what : str, to):
     
     expectedType = [el["type"] for el in structs.types[table] if el["name"] == what][0]
     if type(to) != expectedType:
-        return f"TypeError: '{type(to)}' object received when expecting '{expectedType}' for '{what}' column"
+        try:
+            to = expectedType(to)
+        except:
+            return f"TypeError: '{type(to)}' object received when expecting '{expectedType}' for '{what}' column"
     
     id, to = encode([id, to])
-
-    idType = structs.types[table][0]["type"]
-
-    if idType == int:
-        try:
-            id = int(id)
-            if type(to) == int:
-                try:
-                    to = int(to)
-                    query = f"""update {table} set {what} = {to} where id = {id};"""
-                except Exception as e:
-                    pass
-            else:
-                query = f"""update {table} set {what} = '{to}' where id = {id};"""
-        except Exception as e:
-            pass
-    else:
-        if type(to) == int:
-            try:
-                to = int(to)
-                query = f"""update {table} set {what} = {to} where id = '{id}';"""
-            except:
-                pass
-        else:
-            query = f"""update {table} set {what} = '{to}' where id = '{id}';"""
     
     try:
-        cursor.execute(query)
+        cursor.execute(f"""update {table} set {what} = {"'" if type(to) == str else ""}{to}{"'" if type(to) == str else ""} where id = {"'" if type(id) == str else ""}{id}{"'" if type(id) == str else ""};""")
     except Exception as e:
         return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
     
@@ -176,21 +145,9 @@ def delete(table : str, id):
     cursor = connection.cursor()
     
     id = encode(id)
-
-    idType = structs.types[table][0]["type"]
-
-    if idType == int:
-        try:
-            id = int(id)
-        except:
-            pass
-
-        query = f"delete from {table} where id = {id};"
-    else:
-        query = f"delete from {table} where id = '{id}';"
     
     try:
-        cursor.execute(query)
+        cursor.execute(f"delete from {table} where id = {"'" if type(id) == str else ""}{id}{"'" if type(id) == str else ""};")
     except Exception as e:
         return str(type(e)).removeprefix("<class '").removesuffix("'>") + ": " + str(e)
     
@@ -234,12 +191,12 @@ class User:
         connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
         cursor = connection.cursor()
         
-        result = cursor.execute(f"select * from users where id = {id};").fetchall()
+        result = cursor.execute(f"select username from users where id = {id};").fetchall()
 
         if not result:
             return False
 
-        result = decode(result[0][1])
+        result = decode(result[0][0])
 
         return result
     
@@ -257,12 +214,20 @@ class User:
 
         username = encode(username)
         
-        result = cursor.execute(f"select * from users where username = '{username}';").fetchall()
+        result = cursor.execute(f"select id from users where username = '{username}';").fetchall()
 
         if not result:
             return False
 
         return result[0][0]
+    
+    def check_from_username(username : str):
+        result = User.from_username(username)
+
+        if type(result) == str:
+            return bool(result)
+    
+        return result
     
     def update(id : int, what : str, to):
         connection = sqlite3.connect("db.sqlite3", check_same_thread=False)
@@ -354,9 +319,9 @@ class Authentication:
 
         token = encode(token)
 
-        id = cursor.execute(f"select id from users where token = '{token}';").fetchall()
+        id = cursor.execute(f"select id, username from users where token = '{token}';").fetchall()
 
         if not id:
             return False
 
-        return id[0][0]
+        return id[0]

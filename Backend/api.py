@@ -227,6 +227,10 @@ class Truck:
 
     @api.delete("/truck", tags=["Truck"])
     def delete_truck(id : int):
+        exists = dbint.check("trucks", id)
+        if not exists:
+            return {"code": 404}
+        
         result = dbint.delete("trucks", id)
         if result == True:
             return {"code": 200}
@@ -247,22 +251,31 @@ class User:
         result = dbint.User.read(id)
         if result:
             return {"code": 200, "username": result}
-        return {"code": 400, "error": result}
+        return {"code": 404, "error": result}
     
     @api.get("/users/check", tags=["Users"])
     def check_user(id : int):
         result = dbint.User.check(id)
         return {"code": 200 if result else 404}
     
-    @api.get("/users/validate/username", tags=["Users"])
-    def validate_username(username : str):
+    @api.get("/users/from_username", tags=["Users"])
+    def from_username(username : str):
         result = dbint.User.from_username(username)
         if result:
             return {"code": 200, "id": result}
         return {"code": 400, "error": result}
     
+    @api.get("/users/from_username/check", tags=["Users"])
+    def check_from_username(username : str):
+        result = dbint.User.validate_username(username)
+        return {"code": 200 if result else 404}
+    
     @api.patch("/users", tags=["Users"])
     def update_user(id : int, what : str, to):
+        exists = dbint.User.check(id)
+        if not exists:
+            return {"code": 404}
+        
         result = dbint.User.update(id, what, to)
         if result == True:
             return {"code": 200}
@@ -270,6 +283,10 @@ class User:
     
     @api.delete("/users", tags=["Users"])
     def delete_user(id : int):
+        exists = dbint.User.check(id)
+        if not exists:
+            return {"code": 404}
+        
         result = dbint.User.delete(id)
         if result == True:
             return {"code": 200}
@@ -298,7 +315,7 @@ class Authentication:
     def validate_token(token : str):
         result = dbint.Authentication.validate_token(token)
         if result:
-            return {"code": 200, "id": result}
+            return {"code": 200, "id": result[0], "username": result[1]}
         if result == False:
             return {"code": 401}
         return {"code": 400, "error": result}
