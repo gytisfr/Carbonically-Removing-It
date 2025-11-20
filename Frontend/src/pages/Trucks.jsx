@@ -79,7 +79,7 @@ const TrucksPage = () => {
       const token = localStorage.getItem("token");
 
       const params = {
-        routeid: Number(form.routeid),
+        routeid: String(form.routeid),
         long: Number(form.long),
         lat: Number(form.lat),
       };
