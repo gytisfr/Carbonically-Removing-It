@@ -2,9 +2,9 @@ import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import {
   GoogleMap,
-  LoadScript,
   Marker,
   Polyline,
+  useJsApiLoader,
 } from "@react-google-maps/api";
 
 const API_KEY = "AIzaSyAZ27Ls3s5AzUVOSXKcGP1RFxWnIcIkvq0";
@@ -15,7 +15,7 @@ const mapContainerStyle = {
   height: "100%",
 };
 
-const defaultCenter = { lat: 57.1497, lng: -2.0943 }; 
+const defaultCenter = { lat: 57.1497, lng: -2.0943 }; // Aberdeen
 
 export default function Tracker() {
   const [routes, setRoutes] = useState([]);
@@ -24,11 +24,14 @@ export default function Tracker() {
   const [trucks, setTrucks] = useState([]);
   const [directionsList, setDirectionsList] = useState([]);
   const [selectedRouteId, setSelectedRouteId] = useState(null);
-  const [isMapsReady, setIsMapsReady] = useState(false);
 
   const mapRef = useRef(null);
   const truckIcon =
     "https://uxwing.com/wp-content/themes/uxwing/download/logistics-shipping-delivery/delivery-truck-icon.png";
+
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: API_KEY,
+  });
 
   const getToken = () => localStorage.getItem("token");
 
@@ -36,7 +39,7 @@ export default function Tracker() {
     setSelectedRouteId(null);
   }, []);
 
-  // ---------- FETCHERS WITH TOKEN ----------
+
   const fetchClients = async () => {
     try {
       const token = getToken();
@@ -100,16 +103,14 @@ export default function Tracker() {
   }, []);
 
 
-
   const buildGoogleRoute = (locationsStr) => {
     return new Promise((resolve) => {
-    
       if (
         !window.google ||
         !window.google.maps ||
         !window.google.maps.DirectionsService
       ) {
-        console.warn("Google Maps API not ready for DirectionsService yet.");
+        console.warn("Google Maps API not ready for DirectionsService.");
         return resolve(null);
       }
 
@@ -148,8 +149,7 @@ export default function Tracker() {
 
   useEffect(() => {
     const buildRoutes = async () => {
-  
-      if (!isMapsReady || !routes.length || !clients.length) return;
+      if (!isLoaded || !routes.length || !clients.length) return;
 
       const built = await Promise.all(
         routes.map((r) => buildGoogleRoute(r.locations))
@@ -176,8 +176,7 @@ export default function Tracker() {
     };
 
     buildRoutes();
-  }, [routes, clients, drivers, trucks, isMapsReady]);
-
+  }, [routes, clients, drivers, trucks, isLoaded]);
 
 
   const focusRoute = (routeObj) => {
@@ -197,83 +196,89 @@ export default function Tracker() {
     setSelectedRouteId(routeObj.id);
   };
 
-  
+
+
+  if (!isLoaded) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <p>Loading map…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen min-h-screen flex flex-row ">
       {/* MAP */}
       <main className="flex-grow p-6">
         <div className="h-full w-full bg-white rounded-sm shadow-2xl">
-          <LoadScript googleMapsApiKey={API_KEY}>
-            <GoogleMap
-              onLoad={(map) => {
-                mapRef.current = map;
-                setIsMapsReady(true); // mark Maps API as ready
-              }}
-              mapContainerStyle={mapContainerStyle}
-              center={defaultCenter}
-              zoom={7}
-              options={{
-                fullscreenControl: false,
-                mapTypeControl: false,
-                zoomControl: false,
-                streetViewControl: false,
-                rotateControl: false,
-                scaleControl: false,
-                keyboardShortcuts: false,
-                clickableIcons: false,
-              }}
-            >
-              {directionsList.map((r, index) => {
-                const path = r.directions.routes[0].overview_path;
+          <GoogleMap
+            onLoad={(map) => {
+              mapRef.current = map;
+            }}
+            mapContainerStyle={mapContainerStyle}
+            center={defaultCenter}
+            zoom={7}
+            options={{
+              fullscreenControl: false,
+              mapTypeControl: false,
+              zoomControl: false,
+              streetViewControl: false,
+              rotateControl: false,
+              scaleControl: false,
+              keyboardShortcuts: false,
+              clickableIcons: false,
+            }}
+          >
+            {directionsList.map((r, index) => {
+              const path = r.directions.routes[0].overview_path;
 
-                return (
-                  <div key={r.id}>
-                    {/* Black outline */}
-                    <Polyline
-                      path={path}
-                      options={{
-                        strokeColor: "#000000",
-                        strokeWeight: 4,
-                        strokeOpacity: selectedRouteId === r.id ? 0.8 : 0.1,
-                        zIndex: selectedRouteId === r.id ? 100 : index,
-                      }}
-                      onClick={() => focusRoute(r)}
-                    />
-                    {/* Colored route */}
-                    <Polyline
-                      path={path}
-                      options={{
-                        strokeColor:
-                          selectedRouteId === r.id ? "#ff0000" : "#0055ff",
-                        strokeWeight: 2,
-                        strokeOpacity: selectedRouteId === r.id ? 1.0 : 0.1,
-                        zIndex: selectedRouteId === r.id ? 101 : index + 0.1,
-                      }}
-                      onClick={() => focusRoute(r)}
-                    />
-                  </div>
-                );
-              })}
-
-              {/* Truck markers */}
-              {directionsList.map((r) => {
-                const truck = r.truck;
-                if (!truck) return null;
-
-                return (
-                  <Marker
-                    key={`truck-${r.id}`}
-                    position={{ lat: truck.lat, lng: truck.long }}
-                    icon={{
-                      url: truckIcon,
-                      scaledSize: new window.google.maps.Size(45, 45),
+              return (
+                <div key={r.id}>
+                  {/* Black outline */}
+                  <Polyline
+                    path={path}
+                    options={{
+                      strokeColor: "#000000",
+                      strokeWeight: 4,
+                      strokeOpacity: selectedRouteId === r.id ? 0.8 : 0.1,
+                      zIndex: selectedRouteId === r.id ? 100 : index,
                     }}
                     onClick={() => focusRoute(r)}
                   />
-                );
-              })}
-            </GoogleMap>
-          </LoadScript>
+                  {/* Colored route */}
+                  <Polyline
+                    path={path}
+                    options={{
+                      strokeColor:
+                        selectedRouteId === r.id ? "#ff0000" : "#0055ff",
+                      strokeWeight: 2,
+                      strokeOpacity: selectedRouteId === r.id ? 1.0 : 0.1,
+                      zIndex: selectedRouteId === r.id ? 101 : index + 0.1,
+                    }}
+                    onClick={() => focusRoute(r)}
+                  />
+                </div>
+              );
+            })}
+
+            {/* Truck markers */}
+            {directionsList.map((r) => {
+              const truck = r.truck;
+              if (!truck) return null;
+
+              return (
+                <Marker
+                  key={`truck-${r.id}`}
+                  position={{ lat: truck.lat, lng: truck.long }}
+                  icon={{
+                    url: truckIcon,
+                    scaledSize: new window.google.maps.Size(45, 45),
+                  }}
+                  onClick={() => focusRoute(r)}
+                />
+              );
+            })}
+          </GoogleMap>
         </div>
       </main>
 
