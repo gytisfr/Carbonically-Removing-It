@@ -427,4 +427,4 @@ class Authentication:
 
 import uvicorn
 
-uvicorn.run(api, port=5089)
+uvicorn.run(api, host="0.0.0.0", port=5089)
