@@ -21,7 +21,7 @@ types = {
         {"name": "long", "type": float, "required": True},
         {"name": "lat", "type": float, "required": True},
         {"name": "routeid", "type": str, "required": False},
-        {"name": "driverid", "type": str, "required": False}
+        {"name": "driverid", "type": int, "required": False}
     ],
     "users": [
         {"name": "id", "type": int, "required": True},

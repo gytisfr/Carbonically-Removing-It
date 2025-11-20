@@ -1,4 +1,0 @@
-automate id's for create
-implement security/authentication for all endpoints
-
-general code cleanup

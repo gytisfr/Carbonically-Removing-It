@@ -12,18 +12,18 @@ CREATE TABLE routes (
 );
 
 CREATE TABLE drivers (
-    id integer primary key,
+    id integer primary key autoincrement,
     name text not null,
     position text not null
 );
 
 CREATE TABLE trucks (
-    id integer primary key,
+    id integer primary key autoincrement,
     capacity integer not null,
     long real not null,
     lat real not null,
     routeid text,
-    driverid text
+    driverid int
 );
 
 CREATE TABLE users (
