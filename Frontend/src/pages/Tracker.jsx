@@ -24,18 +24,27 @@ export default function Tracker() {
   const [trucks, setTrucks] = useState([]);
   const [directionsList, setDirectionsList] = useState([]);
   const [selectedRouteId, setSelectedRouteId] = useState(null);
+  const [isMapsReady, setIsMapsReady] = useState(false);
 
   const mapRef = useRef(null);
-  const truckIcon = "https://uxwing.com/wp-content/themes/uxwing/download/logistics-shipping-delivery/delivery-truck-icon.png";
+  const truckIcon =
+    "https://uxwing.com/wp-content/themes/uxwing/download/logistics-shipping-delivery/delivery-truck-icon.png";
+
+  const getToken = () => localStorage.getItem("token");
 
   useEffect(() => {
     setSelectedRouteId(null);
   }, []);
 
+  // ---------- FETCHERS WITH TOKEN ----------
   const fetchClients = async () => {
     try {
-      const res = await axios.get(`${API_URL}/client/fetch`);
+      const token = getToken();
+      const res = await axios.get(`${API_URL}/client/fetch`, {
+        headers: { token },
+      });
       if (res.data.code === 200) setClients(res.data.data);
+      else console.error("Client fetch failed:", res.data);
     } catch (err) {
       console.error("Client fetch error:", err);
     }
@@ -43,8 +52,12 @@ export default function Tracker() {
 
   const fetchRoutes = async () => {
     try {
-      const res = await axios.get(`${API_URL}/route/fetch`);
+      const token = getToken();
+      const res = await axios.get(`${API_URL}/route/fetch`, {
+        headers: { token },
+      });
       if (res.data.code === 200) setRoutes(res.data.data);
+      else console.error("Route fetch failed:", res.data);
     } catch (err) {
       console.error("Route fetch error:", err);
     }
@@ -52,8 +65,12 @@ export default function Tracker() {
 
   const fetchDrivers = async () => {
     try {
-      const res = await axios.get(`${API_URL}/driver/fetch`);
+      const token = getToken();
+      const res = await axios.get(`${API_URL}/driver/fetch`, {
+        headers: { token },
+      });
       if (res.data.code === 200) setDrivers(res.data.data);
+      else console.error("Driver fetch failed:", res.data);
     } catch (err) {
       console.error("Driver fetch error:", err);
     }
@@ -61,13 +78,16 @@ export default function Tracker() {
 
   const fetchTrucks = async () => {
     try {
-      const res = await axios.get(`${API_URL}/truck/fetch`);
+      const token = getToken();
+      const res = await axios.get(`${API_URL}/truck/fetch`, {
+        headers: { token },
+      });
       if (res.data.code === 200) setTrucks(res.data.data);
+      else console.error("Truck fetch failed:", res.data);
     } catch (err) {
       console.error("Truck fetch error:", err);
     }
   };
-
 
   useEffect(() => {
     const load = async () => {
@@ -78,8 +98,21 @@ export default function Tracker() {
     };
     load();
   }, []);
+
+
+
   const buildGoogleRoute = (locationsStr) => {
     return new Promise((resolve) => {
+    
+      if (
+        !window.google ||
+        !window.google.maps ||
+        !window.google.maps.DirectionsService
+      ) {
+        console.warn("Google Maps API not ready for DirectionsService yet.");
+        return resolve(null);
+      }
+
       const ids = locationsStr.split(",").map((x) => x.trim());
       const cityList = ids
         .map((id) => clients.find((c) => c.id.toString() === id)?.location)
@@ -104,14 +137,19 @@ export default function Tracker() {
         },
         (result, status) => {
           if (status === "OK") resolve({ result, cityList });
-          else resolve(null);
+          else {
+            console.warn("Directions request failed:", status);
+            resolve(null);
+          }
         }
       );
     });
   };
+
   useEffect(() => {
     const buildRoutes = async () => {
-      if (!routes.length || !clients.length) return;
+  
+      if (!isMapsReady || !routes.length || !clients.length) return;
 
       const built = await Promise.all(
         routes.map((r) => buildGoogleRoute(r.locations))
@@ -138,7 +176,9 @@ export default function Tracker() {
     };
 
     buildRoutes();
-  }, [routes, clients, drivers, trucks]);
+  }, [routes, clients, drivers, trucks, isMapsReady]);
+
+
 
   const focusRoute = (routeObj) => {
     if (!routeObj || !mapRef.current) return;
@@ -157,6 +197,7 @@ export default function Tracker() {
     setSelectedRouteId(routeObj.id);
   };
 
+  
   return (
     <div className="h-screen min-h-screen flex flex-row ">
       {/* MAP */}
@@ -164,7 +205,10 @@ export default function Tracker() {
         <div className="h-full w-full bg-white rounded-sm shadow-2xl">
           <LoadScript googleMapsApiKey={API_KEY}>
             <GoogleMap
-              onLoad={(map) => (mapRef.current = map)}
+              onLoad={(map) => {
+                mapRef.current = map;
+                setIsMapsReady(true); // mark Maps API as ready
+              }}
               mapContainerStyle={mapContainerStyle}
               center={defaultCenter}
               zoom={7}
@@ -199,7 +243,8 @@ export default function Tracker() {
                     <Polyline
                       path={path}
                       options={{
-                        strokeColor: selectedRouteId === r.id ? "#ff0000" : "#0055ff",
+                        strokeColor:
+                          selectedRouteId === r.id ? "#ff0000" : "#0055ff",
                         strokeWeight: 2,
                         strokeOpacity: selectedRouteId === r.id ? 1.0 : 0.1,
                         zIndex: selectedRouteId === r.id ? 101 : index + 0.1,

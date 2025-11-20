@@ -248,7 +248,7 @@ class Driver:
 
 class Truck:
     @api.post("/truck", tags=["Truck"])
-    def create_truck(routeid : int, long : float, lat : float, driverid : int = None, capacity : int = None, token : str=Header(default=None)):
+    def create_truck(routeid : str, long : float, lat : float, driverid : int = None, capacity : int = None, token : str=Header(default=None)):
         token = dbint.Authentication.validate(token)
         if not token:
             return {"code": 401}

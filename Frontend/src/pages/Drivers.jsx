@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 
 const DriversPage = () => {
+  const token = localStorage.getItem("token");
+
   const [form, setForm] = useState({
     id: "",
     name: "",
@@ -12,13 +14,18 @@ const DriversPage = () => {
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [originalDriver, setOriginalDriver] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-
-  // Fetch all drivers
+  
   const fetchDrivers = async () => {
     try {
-      const res = await axios.get("http://127.0.0.1:5089/driver/fetch");
-      if (res.data.code === 200) setDrivers(res.data.data);
-      else console.error("Failed to fetch drivers:", res.data.error);
+      const res = await axios.get("http://127.0.0.1:5089/driver/fetch", {
+        headers: { token },
+      });
+
+      if (res.data.code === 200) {
+        setDrivers(res.data.data);
+      } else {
+        console.error("Failed to fetch drivers:", res.data.error);
+      }
     } catch (err) {
       console.error("Error fetching drivers:", err);
     }
@@ -30,7 +37,7 @@ const DriversPage = () => {
 
   // Create new driver
   const handleSubmit = async () => {
-    if (!form.id || !form.name || !form.position) {
+    if (!form.name || !form.position) {
       return alert("Please fill in all required fields!");
     }
 
@@ -38,8 +45,12 @@ const DriversPage = () => {
       await axios.post(
         "http://127.0.0.1:5089/driver",
         null,
-        { params: form }
+        {
+          params: { name: form.name, position: form.position },
+          headers: { token },
+        }
       );
+
       alert("Driver created successfully!");
       setForm({ id: "", name: "", position: "" });
       fetchDrivers();
@@ -49,7 +60,7 @@ const DriversPage = () => {
     }
   };
 
-  // Edit selected driver
+  // Edit driver
   const handleEdit = async () => {
     if (!selectedDriver) return alert("Select a driver first!");
 
@@ -59,10 +70,18 @@ const DriversPage = () => {
           await axios.patch(
             "http://127.0.0.1:5089/driver",
             null,
-            { params: { id: originalDriver.id, what: key, to: selectedDriver[key] } }
+            {
+              params: {
+                id: originalDriver.id,
+                what: key,
+                to: selectedDriver[key],
+              },
+              headers: { token },
+            }
           );
         }
       }
+
       alert("Driver updated successfully!");
       fetchDrivers();
     } catch (error) {
@@ -71,23 +90,35 @@ const DriversPage = () => {
     }
   };
 
+  // Delete driver
+  const handleDelete = async () => {
+    if (!selectedDriver) return;
+
+    if (!window.confirm("Are you sure you want to delete this driver?")) return;
+
+    try {
+      await axios.delete("http://127.0.0.1:5089/driver", {
+        params: { id: selectedDriver.id },
+        headers: { token },
+      });
+
+      alert("Driver deleted successfully!");
+      setSelectedDriver(null);
+      fetchDrivers();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete driver.");
+    }
+  };
+
   return (
     <div className="h-screen min-h-screen flex flex-col justify-between">
       <main className="h-full w-full gap-6 grid grid-cols-3 grid-rows-1 items-start justify-center p-6">
-
-        {/* Create Driver */}
         <div className="h-full w-full bg-white rounded-sm p-6 flex flex-col">
+
           <p className="text-2xl">Create New Driver</p>
           <div className="mt-6 space-y-4">
-            <div>
-              <p>ID</p>
-              <input
-                type="number"
-                value={form.id}
-                onChange={(e) => setForm(prev => ({ ...prev, id: e.target.value }))}
-                className="border-black border-2 p-2 rounded-sm w-full"
-              />
-            </div>
+
             <div>
               <p>Name</p>
               <input
@@ -96,6 +127,7 @@ const DriversPage = () => {
                 className="border-black border-2 p-2 rounded-sm w-full"
               />
             </div>
+
             <div>
               <p>Position</p>
               <input
@@ -148,9 +180,8 @@ const DriversPage = () => {
             className="border-2 border-black p-2 rounded mb-4"
             onChange={(e) => {
               const driver = drivers.find(d => d.id.toString() === e.target.value);
-              if (!driver) return setSelectedDriver(null);
-              setSelectedDriver({ ...driver });
-              setOriginalDriver({ ...driver });
+              setSelectedDriver(driver ? { ...driver } : null);
+              setOriginalDriver(driver ? { ...driver } : null);
             }}
           >
             <option value="">-- Select a Driver --</option>
@@ -173,6 +204,7 @@ const DriversPage = () => {
                     className="border-2 border-black p-2 rounded w-full"
                   />
                 </div>
+
                 <div>
                   <p>Name</p>
                   <input
@@ -181,6 +213,7 @@ const DriversPage = () => {
                     className="border-2 border-black p-2 rounded w-full"
                   />
                 </div>
+
                 <div>
                   <p>Position</p>
                   <input
@@ -200,18 +233,7 @@ const DriversPage = () => {
                 </button>
 
                 <button
-                  onClick={async () => {
-                    if (!window.confirm("Are you sure you want to delete this driver?")) return;
-                    try {
-                      await axios.delete("http://127.0.0.1:5089/driver", { params: { id: selectedDriver.id } });
-                      alert("Driver deleted successfully!");
-                      setSelectedDriver(null);
-                      fetchDrivers();
-                    } catch (err) {
-                      console.error(err);
-                      alert("Failed to delete driver.");
-                    }
-                  }}
+                  onClick={handleDelete}
                   className="bg-red-600 text-white p-2 rounded-md cursor-pointer"
                 >
                   Delete Driver
