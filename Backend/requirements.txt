@@ -8,7 +8,5 @@ os
 *required*
 fastapi
 uvicorn
-
-*not required yet*
 bcrypt
 jwt
