@@ -154,7 +154,7 @@ export default function Tracker() {
       const built = await Promise.all(
         routes.map((r) => buildGoogleRoute(r.locations))
       );
-
+      
       const newList = routes
         .map((r, i) => {
           if (!built[i]) return null;
@@ -163,11 +163,7 @@ export default function Tracker() {
             directions: built[i].result,
             cities: built[i].cityList,
             truck: trucks.find((t) => t.routeid === r.id),
-            driver: drivers.find(
-              (d) =>
-                trucks.find((t) => t.routeid === r.id)?.driverid ===
-                d.id.toString()
-            ),
+            driver: drivers.find((d) => trucks.find((t) => t.routeid === r.id)?.driverid === d.id),
           };
         })
         .filter(Boolean);
@@ -181,7 +177,6 @@ export default function Tracker() {
 
   const focusRoute = (routeObj) => {
     if (!routeObj || !mapRef.current) return;
-
     const bounds = new window.google.maps.LatLngBounds();
     const path = routeObj.directions.routes[0].overview_path;
     path.forEach((point) => bounds.extend(point));
@@ -269,7 +264,7 @@ export default function Tracker() {
               return (
                 <Marker
                   key={`truck-${r.id}`}
-                  position={{ lat: truck.lat, lng: truck.long }}
+                  position={{ lat: truck.long, lng: truck.lat }}
                   icon={{
                     url: truckIcon,
                     scaledSize: new window.google.maps.Size(45, 45),
